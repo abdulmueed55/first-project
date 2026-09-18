@@ -1,0 +1,41 @@
+name: Inspect Power Smart API
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/inspect-powersmart.yml'
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download public Power Smart package
+        run: |
+          curl -L --fail --retry 3 'https://d.apkpure.net/b/XAPK/com.powersmart?version=latest' -o /tmp/powersmart.xapk
+          mkdir -p /tmp/ps
+          unzip -q /tmp/powersmart.xapk -d /tmp/ps
+          find /tmp/ps -maxdepth 2 -type f -printf '%p %s bytes\n' > /tmp/files.txt
+      - name: Extract API strings
+        run: |
+          BASE=$(find /tmp/ps -type f -name '*.apk' | head -n 1)
+          mkdir -p /tmp/base
+          unzip -q "$BASE" -d /tmp/base || true
+          {
+            echo '=== PACKAGE FILES ==='
+            cat /tmp/files.txt
+            echo
+            echo '=== URL / HOST STRINGS ==='
+            find /tmp/base -type f \( -name '*.dex' -o -name '*.so' -o -name '*.xml' \) -print0 | xargs -0 strings -a 2>/dev/null | grep -Eio 'https?://[^ "'\''<>]+' | sort -u | grep -Ei 'pitc|power|iesco|api|auth|login' | head -n 500
+            echo
+            echo '=== POWER SMART KEY STRINGS ==='
+            find /tmp/base -type f -name '*.dex' -print0 | xargs -0 strings -a 2>/dev/null | grep -Ei 'consumer.?id|reference.?no|reference.?number|login|signin|sign.?in|otp|token|bearer|meter|reading|consumption|bill|api-powersmart|powersmart|profile' | sort -u | head -n 2500
+          } > api_report.txt
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: powersmart-api-report
+          path: api_report.txt
+          if-no-files-found: error
