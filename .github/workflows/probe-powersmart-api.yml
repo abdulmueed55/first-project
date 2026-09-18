@@ -12,39 +12,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Probe public API behavior with empty/dummy data
+      - name: Probe signup validation with dummy non-user data
         shell: bash
         run: |
           set +e
           out=api_probe.txt
           : > "$out"
           probe () {
-            name="$1"; method="$2"; url="$3"; data="$4"
+            name="$1"; data="$2"
             {
               echo
-              echo "===== $name | $method ====="
-              echo "$url"
-              if [ "$method" = "GET" ]; then
-                curl -sS -i --max-time 15 -A 'PowerSmart/1.0' "$url" | head -c 12000
-              else
-                curl -sS -i --max-time 15 -A 'PowerSmart/1.0' -H 'Content-Type: application/json' -X "$method" --data "$data" "$url" | head -c 12000
-              fi
+              echo "===== $name ====="
+              echo "BODY=$data"
+              curl -sS -i --max-time 15 -A 'PowerSmart/1.0' -H 'Content-Type: application/json' -X POST --data "$data" 'https://api-powersmart.pitc.com.pk/appUser/signUp' | head -c 12000
               echo
             } >> "$out" 2>&1
           }
-          probe 'associateRefNo GET' GET 'https://api-powersmart.pitc.com.pk/manageAppUserMeters/associateRefNo' ''
-          probe 'associateRefNo POST empty' POST 'https://api-powersmart.pitc.com.pk/manageAppUserMeters/associateRefNo' '{}'
-          probe 'monthlyConsumption GET' GET 'https://api-powersmart.pitc.com.pk/getHistory/monthlyConsumption' ''
-          probe 'monthlyConsumption POST empty' POST 'https://api-powersmart.pitc.com.pk/getHistory/monthlyConsumption' '{}'
-          probe 'paymentHistory GET' GET 'https://api-powersmart.pitc.com.pk/getHistory/paymentHistory' ''
-          probe 'LoadProfile GET' GET 'https://api-powersmart.pitc.com.pk/LoadProfile/' ''
-          probe 'duplicate bill GET' GET 'https://api-powersmart.pitc.com.pk/Pdf/getDuplicateBillPDF' ''
-          probe 'verify mpin POST empty' POST 'https://api-powersmart.pitc.com.pk/appUser/verify-mpin' '{}'
-          probe 'send mpin otp POST empty' POST 'https://api-powersmart.pitc.com.pk/appUser/send-mpin-otp' '{}'
-          probe 'signup POST empty' POST 'https://api-powersmart.pitc.com.pk/appUser/signUp' '{}'
-          probe 'basic info dummy' GET 'https://cp.pitc.com.pk:8071/api/BasicInfo/GetInfo?refno=00000000000000' ''
+          probe 'empty' '{}'
+          probe 'discoCode lower camel' '{"discoCode":"IESCO"}'
+          probe 'DISCOCode' '{"DISCOCode":"IESCO"}'
+          probe 'disco_code' '{"disco_code":"IESCO"}'
+          probe 'discoCode + userType' '{"discoCode":"IESCO","userType":"Consumer"}'
+          probe 'discoCode + fake mobile' '{"discoCode":"IESCO","mobileNo":"03000000000"}'
+          probe 'discoCode + phone' '{"discoCode":"IESCO","phoneNumber":"03000000000"}'
+          probe 'discoCode + fake email' '{"discoCode":"IESCO","email":"invalid@example.invalid"}'
       - uses: actions/upload-artifact@v4
         with:
-          name: powersmart-api-probe
+          name: powersmart-api-probe-v2
           path: api_probe.txt
           if-no-files-found: error
