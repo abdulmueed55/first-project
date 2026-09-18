@@ -1,0 +1,54 @@
+name: Decompile Power Smart Hermes
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/decompile-powersmart-hermes.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  decompile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download Power Smart
+        run: |
+          curl -L --fail --retry 3 'https://d.apkpure.net/b/XAPK/com.powersmart?version=latest' -o /tmp/powersmart.xapk
+          mkdir -p /tmp/ps /tmp/base
+          unzip -q /tmp/powersmart.xapk -d /tmp/ps
+          unzip -q /tmp/ps/com.powersmart.apk -d /tmp/base
+          file /tmp/base/assets/index.android.bundle || true
+      - name: Install Hermes decoder
+        run: |
+          python3 -m pip install --user hermes-dec
+          python3 -m site --user-base
+      - name: Decompile bundle
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          B=/tmp/base/assets/index.android.bundle
+          hbc-decompiler "$B" decompiled.js || hermes-dec.hbc-decompiler "$B" decompiled.js || true
+          test -s decompiled.js
+      - name: Extract relevant API/auth functions
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          s=Path('decompiled.js').read_text(errors='ignore')
+          terms=['associateRefNo','monthlyConsumption','paymentHistory','getDuplicateBillPDF','verify-mpin','send-mpin-otp','signUp','signInUser','customToken','signInWithCustomToken','Authorization','Bearer','discoCode','instant_read','get_consumption']
+          out=[]
+          for term in terms:
+              out.append('\n\n===== '+term+' =====\n')
+              for n,m in enumerate(re.finditer(re.escape(term),s,re.I)):
+                  if n>=50: break
+                  i=m.start()
+                  out.append(s[max(0,i-9000):min(len(s),i+18000)])
+                  out.append('\n---\n')
+          Path('auth_context.txt').write_text(''.join(out),errors='ignore')
+          print('decompiled bytes',len(s),'context bytes',Path('auth_context.txt').stat().st_size)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: powersmart-hermes-auth-context
+          path: auth_context.txt
+          if-no-files-found: error
