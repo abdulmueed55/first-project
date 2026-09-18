@@ -1,0 +1,43 @@
+name: Inspect IESCO Smart API
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/inspect-iesco-smart.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download IESCO Smart
+        run: |
+          curl -L --fail --retry 3 'https://d.apkpure.net/b/XAPK/com.iesco.smart?version=latest' -o /tmp/iesco.xapk
+          mkdir -p /tmp/iesco /tmp/base
+          unzip -q /tmp/iesco.xapk -d /tmp/iesco
+          echo '=== FILES ===' > report.txt
+          find /tmp/iesco -maxdepth 2 -type f -printf '%p %s bytes\n' >> report.txt
+          BASE=$(find /tmp/iesco -type f -name 'com.iesco.smart.apk' | head -n 1)
+          if [ -z "$BASE" ]; then BASE=$(find /tmp/iesco -type f -name '*.apk' -printf '%s %p\n' | sort -nr | head -n 1 | cut -d' ' -f2-); fi
+          echo "BASE=$BASE" >> report.txt
+          unzip -q "$BASE" -d /tmp/base
+      - name: Scan endpoints and auth strings
+        run: |
+          {
+            echo
+            echo '=== URLS ==='
+            find /tmp/base -type f -print0 | xargs -0 strings -a 2>/dev/null | grep -Eio 'https?://[^ "'\''<>]+' | sort -u | grep -Ei 'iesco|pitc|mdm|api|auth|meter|bill|smart' | head -n 2500
+            echo
+            echo '=== KEY STRINGS ==='
+            find /tmp/base -type f -print0 | xargs -0 strings -a 2>/dev/null | grep -Ei 'signin|login|otp|token|authorization|consumer|reference|refno|meter|instant|reading|consumption|daily|monthly|load.?profile|bill|privatekey|customer' | sort -u | head -n 9000
+            echo
+            echo '=== BUNDLES ==='
+            find /tmp/base -type f \( -name '*.bundle' -o -name 'index.android.bundle' -o -name 'libapp.so' \) -printf '%p %s bytes\n'
+          } >> report.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: iesco-smart-api-report
+          path: report.txt
+          if-no-files-found: error
