@@ -1,0 +1,52 @@
+name: Build IESCO APK
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'lib/**'
+      - 'pubspec.yaml'
+      - '.github/workflows/build-iesco-apk.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Preserve app source
+        run: |
+          cp pubspec.yaml /tmp/pubspec.yaml
+          cp -R lib /tmp/lib
+      - name: Generate Android project
+        run: |
+          flutter create --platforms=android --project-name iesco_meter_live --org com.abdulmueed .
+          rm -rf lib
+          cp -R /tmp/lib lib
+          cp /tmp/pubspec.yaml pubspec.yaml
+      - name: Enable Android internet access
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('android/app/src/main/AndroidManifest.xml')
+          s=p.read_text()
+          perm='<uses-permission android:name="android.permission.INTERNET"/>'
+          marker='<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
+          if perm not in s:
+              s=s.replace(marker, marker+'\n    '+perm)
+          p.write_text(s)
+          PY
+      - name: Get packages
+        run: flutter pub get
+      - name: Build release APK
+        run: flutter build apk --release
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: iesco-meter-live-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
