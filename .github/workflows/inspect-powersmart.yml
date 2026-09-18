@@ -17,28 +17,34 @@ jobs:
           curl -L --fail --retry 3 'https://d.apkpure.net/b/XAPK/com.powersmart?version=latest' -o /tmp/powersmart.xapk
           mkdir -p /tmp/ps
           unzip -q /tmp/powersmart.xapk -d /tmp/ps
-          find /tmp/ps -maxdepth 2 -type f -printf '%p %s bytes\n' > /tmp/files.txt
-      - name: Extract base APK strings
+      - name: Install JADX
         run: |
-          BASE=/tmp/ps/com.powersmart.apk
-          mkdir -p /tmp/base
-          unzip -q "$BASE" -d /tmp/base || true
+          URL=$(curl -s https://api.github.com/repos/skylot/jadx/releases/latest | jq -r '.assets[] | select(.name | test("^jadx-[0-9].*\\.zip$")) | .browser_download_url' | head -n 1)
+          echo "$URL"
+          curl -L --fail "$URL" -o /tmp/jadx.zip
+          mkdir -p /tmp/jadx
+          unzip -q /tmp/jadx.zip -d /tmp/jadx
+          chmod +x /tmp/jadx/bin/jadx
+      - name: Decompile and extract auth/API code
+        run: |
+          /tmp/jadx/bin/jadx -d /tmp/src /tmp/ps/com.powersmart.apk >/tmp/jadx.log 2>&1 || true
           {
-            echo '=== PACKAGE FILES ==='
-            cat /tmp/files.txt
+            echo '=== JADX LOG ==='
+            tail -n 80 /tmp/jadx.log
             echo
-            echo '=== BASE CONTENT SAMPLE ==='
-            find /tmp/base -maxdepth 4 -type f | head -n 400
+            echo '=== API URL MATCH FILES ==='
+            grep -RIl 'api-powersmart.pitc.com.pk' /tmp/src | head -n 200
             echo
-            echo '=== URL / HOST STRINGS ==='
-            find /tmp/base -type f -print0 | xargs -0 strings -a 2>/dev/null | grep -Eio 'https?://[^ "'\''<>]+' | sort -u | grep -Ei 'pitc|power|iesco|api|auth|login|bill|meter' | head -n 1200
-            echo
-            echo '=== POWER SMART KEY STRINGS ==='
-            find /tmp/base -type f -print0 | xargs -0 strings -a 2>/dev/null | grep -Ei 'consumer.?id|reference.?no|reference.?number|login|signin|sign.?in|otp|token|bearer|meter|reading|consumption|bill|api-powersmart|powersmart|profile|dashboard|cnic|mobile' | sort -u | head -n 6000
+            echo '=== EXACT ENDPOINT CONTEXT ==='
+            for term in               'api-powersmart.pitc.com.pk'               'associateRefNo'               'monthlyConsumption'               'paymentHistory'               'LoadProfile'               'verify-mpin'               'send-mpin-otp'               'signUp'               'signIn'               'smsOTPCode'               'accessToken'               'Authorization'               'Bearer'; do
+              echo
+              echo "##### TERM: $term #####"
+              grep -RIn -m 60 -C 10 "$term" /tmp/src 2>/dev/null | head -n 1800 || true
+            done
           } > api_report.txt
       - name: Upload report
         uses: actions/upload-artifact@v4
         with:
-          name: powersmart-api-report-v2
+          name: powersmart-api-report-v3
           path: api_report.txt
           if-no-files-found: error
