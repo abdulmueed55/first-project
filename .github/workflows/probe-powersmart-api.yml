@@ -12,32 +12,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Probe signup validation with dummy non-user data
+      - name: Probe auth route validation with dummy non-user data
         shell: bash
         run: |
           set +e
           out=api_probe.txt
           : > "$out"
-          probe () {
-            name="$1"; data="$2"
+          p () {
+            name="$1"; url="$2"; data="$3"
             {
               echo
               echo "===== $name ====="
+              echo "$url"
               echo "BODY=$data"
-              curl -sS -i --max-time 15 -A 'PowerSmart/1.0' -H 'Content-Type: application/json' -X POST --data "$data" 'https://api-powersmart.pitc.com.pk/appUser/signUp' | head -c 12000
+              curl -sS -i --max-time 15 -A 'PowerSmart/1.0' -H 'Content-Type: application/json' -X POST --data "$data" "$url" | head -c 12000
               echo
             } >> "$out" 2>&1
           }
-          probe 'empty' '{}'
-          probe 'discoCode lower camel' '{"discoCode":"IESCO"}'
-          probe 'DISCOCode' '{"DISCOCode":"IESCO"}'
-          probe 'disco_code' '{"disco_code":"IESCO"}'
-          probe 'discoCode + userType' '{"discoCode":"IESCO","userType":"Consumer"}'
-          probe 'discoCode + fake mobile' '{"discoCode":"IESCO","mobileNo":"03000000000"}'
-          probe 'discoCode + phone' '{"discoCode":"IESCO","phoneNumber":"03000000000"}'
-          probe 'discoCode + fake email' '{"discoCode":"IESCO","email":"invalid@example.invalid"}'
+          p 'signup discoCode' 'https://api-powersmart.pitc.com.pk/appUser/signUp' '{"discoCode":"IESCO"}'
+          p 'signup DISCOCode' 'https://api-powersmart.pitc.com.pk/appUser/signUp' '{"DISCOCode":"IESCO"}'
+          p 'signin lower' 'https://api-powersmart.pitc.com.pk/appUser/signin' '{}'
+          p 'signIn camel' 'https://api-powersmart.pitc.com.pk/appUser/signIn' '{}'
+          p 'login' 'https://api-powersmart.pitc.com.pk/appUser/login' '{}'
+          p 'auth signInUser' 'https://api-powersmart.pitc.com.pk/auth/signInUser' '{}'
+          p 'verify-mpin empty' 'https://api-powersmart.pitc.com.pk/appUser/verify-mpin' '{}'
       - uses: actions/upload-artifact@v4
         with:
-          name: powersmart-api-probe-v2
+          name: powersmart-api-probe-v3
           path: api_probe.txt
           if-no-files-found: error
