@@ -1,0 +1,68 @@
+name: Extract Power Smart Network Flow
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/extract-powersmart-bundle.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download and unpack Power Smart
+        run: |
+          curl -L --fail --retry 3 'https://d.apkpure.net/b/XAPK/com.powersmart?version=latest' -o /tmp/powersmart.xapk
+          mkdir -p /tmp/ps /tmp/base
+          unzip -q /tmp/powersmart.xapk -d /tmp/ps
+          unzip -q /tmp/ps/com.powersmart.apk -d /tmp/base
+      - name: Extract network contexts
+        run: |
+          BUNDLE=$(find /tmp/base -type f \( -name 'index.android.bundle' -o -name '*.bundle' \) | head -n 1)
+          echo "Bundle: $BUNDLE"
+          python3 - "$BUNDLE" <<'PY'
+          import sys, re
+          from pathlib import Path
+          p=Path(sys.argv[1])
+          data=p.read_bytes().decode('utf-8','ignore')
+          terms=[
+            'api-powersmart.pitc.com.pk',
+            'associateRefNo',
+            'monthlyConsumption',
+            'paymentHistory',
+            'LoadProfile',
+            'getDuplicateBillPDF',
+            'verify-mpin',
+            'send-mpin-otp',
+            'signUp',
+            'signIn',
+            'smsOTPCode',
+            'Authorization',
+            'Bearer',
+            'accessToken',
+            'userToken',
+            'token',
+            'login',
+          ]
+          out=[]
+          for term in terms:
+              out.append('\n\n######## '+term+' ########\n')
+              starts=[m.start() for m in re.finditer(re.escape(term),data,re.I)]
+              out.append('MATCHES='+str(len(starts))+'\n')
+              for i,pos in enumerate(starts[:80]):
+                  lo=max(0,pos-3500); hi=min(len(data),pos+7000)
+                  chunk=data[lo:hi]
+                  out.append('\n--- '+term+' #'+str(i+1)+' @'+str(pos)+' ---\n')
+                  out.append(chunk.replace('\x00',' '))
+                  out.append('\n')
+          Path('network_context.txt').write_text(''.join(out),errors='ignore')
+          print('bundle bytes',len(data),'report bytes',Path('network_context.txt').stat().st_size)
+          PY
+      - name: Upload network report
+        uses: actions/upload-artifact@v4
+        with:
+          name: powersmart-network-context
+          path: network_context.txt
+          if-no-files-found: error
