@@ -1,0 +1,727 @@
+<title>Media Trend Monitor</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap">
+<style>
+/* Layout: single-column utility app, sidebar config + main results */
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1a1d23;
+  --fg-muted: #6b7280;
+  --accent: #2563eb;
+  --accent-light: #dbeafe;
+  --accent-dark: #1d4ed8;
+  --border: #e5e7eb;
+  --success: #059669;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --font-body: 'DM Sans', system-ui, sans-serif;
+  --font-mono: 'Space Mono', 'SF Mono', monospace;
+  --radius: 10px;
+  --radius-sm: 6px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --fg: #e8eaed;
+    --fg-muted: #9ca3af;
+    --accent: #60a5fa;
+    --accent-light: #1e3a5f;
+    --accent-dark: #93bbfd;
+    --border: #2d3140;
+    --success: #34d399;
+    --warning: #fbbf24;
+    --danger: #f87171;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --fg: #e8eaed;
+  --fg-muted: #9ca3af;
+  --accent: #60a5fa;
+  --accent-light: #1e3a5f;
+  --accent-dark: #93bbfd;
+  --border: #2d3140;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #f87171;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  line-height: 1.6;
+  padding-inline: 16px;
+  padding-block: 0;
+}
+
+.app-header {
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  z-index: 10;
+  background: var(--bg);
+  padding: 16px 0 12px;
+  border-bottom: 1px solid var(--border);
+}
+.app-header h1 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.app-header h1 .icon {
+  width: 28px; height: 28px;
+  background: var(--accent);
+  border-radius: var(--radius-sm);
+  display: grid; place-items: center;
+  color: #fff; font-size: 14px;
+}
+.app-header p {
+  font-size: 0.82rem;
+  color: var(--fg-muted);
+  margin-top: 2px;
+}
+
+.main { max-width: 860px; margin: 0 auto; }
+
+/* Config section */
+.config-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-top: 20px;
+}
+.config-section h2 {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg-muted);
+  margin-bottom: 14px;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 600px) {
+  .form-grid { grid-template-columns: 1fr; }
+}
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-group.full { grid-column: 1 / -1; }
+label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--fg);
+}
+input, textarea {
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--fg);
+  outline: none;
+  transition: border-color 0.15s;
+}
+input:focus, textarea:focus {
+  border-color: var(--accent);
+}
+textarea { resize: vertical; min-height: 60px; }
+.hint {
+  font-size: 0.75rem;
+  color: var(--fg-muted);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+.btn:active { transform: scale(0.98); }
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  margin-top: 16px;
+  width: 100%;
+}
+.btn-primary:hover { background: var(--accent-dark); }
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Keywords display */
+.keywords-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.keyword-chip {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 3px 10px;
+  border-radius: 100px;
+  background: var(--accent-light);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* Status bar */
+.status-bar {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  color: var(--fg-muted);
+}
+.status-bar.visible { display: flex; }
+.spinner {
+  width: 18px; height: 18px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Results */
+.results-header {
+  display: none;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-top: 28px;
+  margin-bottom: 4px;
+}
+.results-header.visible { display: flex; }
+.results-header h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+.results-header .meta {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--fg-muted);
+}
+
+.topic-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-top: 14px;
+  overflow: hidden;
+}
+.topic-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.12s;
+}
+.topic-header:hover { background: color-mix(in srgb, var(--fg) 4%, transparent); }
+.topic-rank {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  width: 26px; height: 26px;
+  display: grid; place-items: center;
+  border-radius: var(--radius-sm);
+  background: var(--accent-light);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.topic-title {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+.topic-score {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 3px 8px;
+  border-radius: 100px;
+  flex-shrink: 0;
+}
+.score-high { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); }
+.score-mid { background: color-mix(in srgb, var(--warning) 15%, transparent); color: var(--warning); }
+.score-low { background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); }
+.topic-chevron {
+  font-size: 0.7rem;
+  color: var(--fg-muted);
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+.topic-card.open .topic-chevron { transform: rotate(90deg); }
+.topic-body {
+  display: none;
+  padding: 0 18px 18px;
+}
+.topic-card.open .topic-body { display: block; }
+
+.topic-summary {
+  font-size: 0.88rem;
+  color: var(--fg-muted);
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+.strategy-box {
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin-bottom: 18px;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  border-left: 3px solid var(--accent);
+}
+.strategy-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+
+.platform-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+}
+@media (max-width: 700px) {
+  .platform-grid { grid-template-columns: 1fr; }
+}
+.platform-card {
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.platform-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.platform-name {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fg-muted);
+}
+.copy-btn {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  background: var(--surface);
+  color: var(--fg-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.copy-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.platform-text {
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--fg);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* News feed */
+.news-section {
+  display: none;
+  margin-top: 24px;
+  margin-bottom: 40px;
+}
+.news-section.visible { display: block; }
+.news-toggle {
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--fg-muted);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.news-toggle:hover { color: var(--fg); }
+.news-list {
+  display: none;
+  margin-top: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+.news-list.visible { display: block; }
+.news-item {
+  font-size: 0.82rem;
+  padding: 6px 0;
+  color: var(--fg);
+  line-height: 1.45;
+  display: flex;
+  gap: 8px;
+}
+.news-item + .news-item { border-top: 1px solid var(--border); padding-top: 8px; }
+.news-kw {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--accent);
+  flex-shrink: 0;
+  padding-top: 1px;
+}
+</style>
+
+<div class="main">
+  <header class="app-header">
+    <h1><span class="icon">&#9670;</span> Media Trend Monitor</h1>
+    <p>Analyze trends and generate platform-ready content</p>
+  </header>
+
+  <section class="config-section">
+    <h2>Configuration</h2>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label for="brand">Brand Identity</label>
+        <textarea id="brand" rows="2" placeholder="e.g. We are a B2B SaaS company focused on AI-driven HR solutions for mid-market enterprises."></textarea>
+      </div>
+      <div class="form-group full">
+        <label for="keywords">Target Keywords</label>
+        <input id="keywords" type="text" placeholder="technology, health, marketing, sustainability">
+        <span class="hint">Comma-separated. Try: technology, finance, health, sustainability, marketing</span>
+      </div>
+    </div>
+    <div class="keywords-bar" id="keywordsBar"></div>
+    <button class="btn btn-primary" id="analyzeBtn" onclick="runAnalysis()">Analyze Trends &amp; Generate Content</button>
+  </section>
+
+  <div class="status-bar" id="statusBar">
+    <div class="spinner"></div>
+    <span id="statusText">Fetching news summaries...</span>
+  </div>
+
+  <div class="results-header" id="resultsHeader">
+    <h2>Top Trending Topics</h2>
+    <span class="meta" id="resultsMeta"></span>
+  </div>
+
+  <div id="resultsContainer"></div>
+
+  <div class="news-section" id="newsSection">
+    <button class="news-toggle" onclick="toggleNews()">Show Raw News Data</button>
+    <div class="news-list" id="newsList"></div>
+  </div>
+</div>
+
+<script>
+const NEWS_DB = {
+  technology: [
+    "Major tech companies announce new AI-powered productivity tools aimed at enterprise customers, signaling a shift toward AI-first workplace solutions.",
+    "A breakthrough in quantum computing achieves stable qubit operations at room temperature, potentially accelerating commercial quantum applications.",
+    "Global cybersecurity spending surges as organizations face increasingly sophisticated AI-driven phishing attacks."
+  ],
+  finance: [
+    "Central banks worldwide coordinate on digital currency frameworks, setting stage for interoperable CBDCs by next year.",
+    "Venture capital funding rebounds sharply in Q4, with AI and climate-tech startups capturing the majority of deals.",
+    "New SEC regulations require enhanced ESG disclosure for publicly traded companies, reshaping corporate reporting."
+  ],
+  health: [
+    "Wearable health devices now detect early signs of cardiac events with 95% accuracy, prompting FDA fast-track review.",
+    "Global mental health platforms see record adoption as employers expand telehealth benefits for remote workers.",
+    "CRISPR-based therapies receive expanded approval for rare genetic disorders, marking a new era in precision medicine."
+  ],
+  sustainability: [
+    "Major retailers commit to fully circular supply chains by 2030, driven by consumer demand and regulatory pressure.",
+    "Carbon capture technology costs drop 40% year-over-year, making direct air capture commercially viable for the first time.",
+    "Electric vehicle sales surpass internal combustion engines in three major European markets for the first time."
+  ],
+  marketing: [
+    "Short-form video engagement surpasses all other content formats, with average watch times increasing 60% year-over-year.",
+    "Privacy-first advertising gains momentum as major browsers phase out third-party cookies entirely.",
+    "Influencer marketing budgets shift toward micro-influencers, with brands reporting 3x higher engagement rates."
+  ],
+  general: [
+    "Remote work policies stabilize globally, with hybrid models becoming the dominant workplace standard.",
+    "Generative AI tools reshape content creation workflows, with 70% of marketing teams now using AI-assisted copywriting.",
+    "Consumer spending shifts toward experiences over goods, with travel and entertainment sectors seeing double-digit growth."
+  ]
+};
+
+const MOCK_RESULTS = {
+  "technology,marketing": {
+    topics: [
+      {
+        title: "AI-Powered Workplace Transformation",
+        summary: "Enterprise AI productivity tools are reshaping how companies operate, with major tech firms leading the charge.",
+        relevance_score: 9,
+        strategic_recommendation: "Position your brand at the intersection of AI innovation and practical workplace outcomes. Publish thought leadership that contrasts hype with measurable ROI, using your own product data as proof points. Partner with early adopters for case studies that demonstrate real productivity gains.",
+        platform_copy: {
+          linkedin: "The AI productivity race isn't about who has the flashiest tools — it's about who delivers measurable results.\n\nAs major tech companies roll out AI-first workplace solutions, the real winners will be organizations that focus on outcomes over features.\n\nHere's what we're seeing from our customers: teams that integrate AI into existing workflows (rather than replacing them) see 3x faster adoption and sustained productivity gains.\n\nThe question isn't whether to adopt AI — it's how to do it without disrupting what already works.\n\nWhat's your team's approach? Let's discuss below.",
+          twitter: "Enterprise AI tools are everywhere. But the companies winning aren't chasing features — they're measuring outcomes.\n\nThe shift from AI-curious to AI-first is happening now. #EnterpriseAI #FutureOfWork #Productivity",
+          instagram_tiktok: "Everyone's talking about AI at work 🤖 but here's what actually matters:\n\nIt's not about having the fanciest tools. It's about results.\n\nWe've seen teams 3x their adoption rates by doing ONE thing differently — integrating AI into workflows people already use.\n\nStop replacing. Start enhancing. 💡\n\n#AI #FutureOfWork #Productivity #TechTrends #WorkplaceInnovation"
+        }
+      },
+      {
+        title: "Short-Form Video Dominates Content Strategy",
+        summary: "Short-form video engagement has surpassed all other formats, with watch times up 60% year-over-year.",
+        relevance_score: 8,
+        strategic_recommendation: "Develop a short-form video series that showcases your product's impact in 30-60 second clips. Focus on before/after transformations and quick tips that demonstrate expertise without requiring a product demo. Repurpose customer testimonials into snackable video content.",
+        platform_copy: {
+          linkedin: "The data is in: short-form video isn't a trend — it's the new baseline for content engagement.\n\nWith watch times up 60% YoY, B2B brands that aren't experimenting with video are leaving attention on the table.\n\nBut here's the nuance most miss: it's not about going viral. It's about building a library of useful, findable content that compounds over time.\n\nThree formats working for B2B right now:\n→ 30-second product tips\n→ Customer story micro-docs\n→ Behind-the-scenes team content\n\nWhich format has worked best for your brand?",
+          twitter: "Short-form video watch times are up 60% YoY. For B2B, it's not about going viral — it's about being useful in 30 seconds.\n\nTip: start with customer stories, not product demos. #ContentStrategy #B2BMarketing",
+          instagram_tiktok: "60% more time watching short videos this year 📈\n\nHere's how B2B brands can actually use this:\n\n✅ 30-sec product tips\n✅ Customer story snippets\n✅ Team behind-the-scenes\n\nThe secret? Be useful, not viral 🎯\n\n#ContentMarketing #ShortFormVideo #B2B #MarketingTips"
+        }
+      },
+      {
+        title: "Privacy-First Advertising Reshapes Digital Marketing",
+        summary: "Major browsers are phasing out third-party cookies entirely, accelerating the shift to privacy-first advertising.",
+        relevance_score: 7,
+        strategic_recommendation: "Lead the conversation on ethical data practices in your industry. Build first-party data assets through gated content and community engagement. Position your brand as a trusted partner that respects user privacy while delivering measurable marketing outcomes.",
+        platform_copy: {
+          linkedin: "Third-party cookies are officially on their way out. But for brands that built on first-party data, this isn't a crisis — it's a competitive advantage.\n\nThe companies winning in a privacy-first world share three traits:\n\n1. They invested in community and owned audiences early\n2. They treat data transparency as a brand value, not a compliance checkbox\n3. They measure what matters (conversions, not impressions)\n\nThe cookie apocalypse is really a trust revolution. And trust compounds.\n\nHow is your team preparing for the cookieless future?",
+          twitter: "Cookies are dying. Trust is the new targeting.\n\nBrands with strong first-party data aren't panicking — they're pulling ahead. The privacy-first era rewards companies that earned attention, not rented it. #DigitalMarketing #Privacy",
+          instagram_tiktok: "The end of cookies isn't scary if you've been building trust 🍪❌\n\nFirst-party data > borrowed audiences\nTransparency > tracking\nCommunity > cookies\n\nThe brands winning right now? They earned attention instead of buying it.\n\n#DigitalMarketing #Privacy #MarketingStrategy #CookielessFuture"
+        }
+      }
+    ]
+  }
+};
+
+function getDefaultMockResult(keywords, brand) {
+  const allNews = [];
+  keywords.forEach(kw => {
+    const cat = Object.keys(NEWS_DB).find(c => kw.toLowerCase().includes(c) || c.includes(kw.toLowerCase()));
+    const items = NEWS_DB[cat] || NEWS_DB.general;
+    items.forEach(s => allNews.push({ keyword: kw, summary: s }));
+  });
+
+  const top3 = allNews.slice(0, 3);
+  return {
+    topics: top3.map((item, i) => ({
+      title: item.summary.split(',')[0].substring(0, 50),
+      summary: item.summary,
+      relevance_score: 9 - i,
+      strategic_recommendation: `This trend directly intersects with your brand's positioning${brand ? ' as ' + brand.substring(0, 60) : ''}. Consider creating targeted content that addresses how your audience can navigate this development, establishing your brand as a go-to resource.`,
+      platform_copy: {
+        linkedin: `Industry insight: ${item.summary}\n\nAs this trend accelerates, forward-thinking brands are already positioning themselves at the forefront. The opportunity lies in translating awareness into actionable strategy.\n\nWhat's your take? Share your perspective below.`,
+        twitter: `${item.summary.substring(0, 200)}\n\nThe implications for our industry are significant. #Trends #Strategy`,
+        instagram_tiktok: `Breaking trend alert 🚨\n\n${item.summary.substring(0, 150)}\n\nThis changes everything for brands in our space. Here's why it matters to YOU 👇\n\n#Trending #Strategy #BrandGrowth`
+      }
+    }))
+  };
+}
+
+function parseKeywords() {
+  const input = document.getElementById('keywords').value;
+  return input.split(',').map(k => k.trim()).filter(k => k.length > 0);
+}
+
+function fetchNews(keywords) {
+  const results = [];
+  keywords.forEach(kw => {
+    const kwLower = kw.toLowerCase();
+    let matched = false;
+    for (const [category, headlines] of Object.entries(NEWS_DB)) {
+      if (kwLower.includes(category) || category.includes(kwLower)) {
+        headlines.forEach(h => results.push({ keyword: kw, summary: h }));
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) {
+      NEWS_DB.general.slice(0, 2).forEach(h => results.push({ keyword: kw, summary: h }));
+    }
+  });
+  return results;
+}
+
+function updateKeywordsBar() {
+  const bar = document.getElementById('keywordsBar');
+  const keywords = parseKeywords();
+  bar.innerHTML = keywords.map(k => `<span class="keyword-chip">${k}</span>`).join('');
+}
+
+document.getElementById('keywords').addEventListener('input', updateKeywordsBar);
+
+function scoreClass(score) {
+  if (score >= 8) return 'score-high';
+  if (score >= 5) return 'score-mid';
+  return 'score-low';
+}
+
+function copyText(text, btn) {
+  try {
+    navigator.clipboard.writeText(text).then(() => {
+      const orig = btn.textContent;
+      btn.textContent = 'Copied!';
+      btn.style.borderColor = 'var(--success)';
+      btn.style.color = 'var(--success)';
+      setTimeout(() => {
+        btn.textContent = orig;
+        btn.style.borderColor = '';
+        btn.style.color = '';
+      }, 1500);
+    }).catch(() => {
+      selectFallback(btn);
+    });
+  } catch {
+    selectFallback(btn);
+  }
+}
+
+function selectFallback(btn) {
+  const card = btn.closest('.platform-card');
+  const textEl = card.querySelector('.platform-text');
+  const range = document.createRange();
+  range.selectNodeContents(textEl);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
+function toggleCard(el) {
+  el.closest('.topic-card').classList.toggle('open');
+}
+
+function toggleNews() {
+  document.getElementById('newsList').classList.toggle('visible');
+}
+
+function renderResults(data, newsItems) {
+  const container = document.getElementById('resultsContainer');
+  container.innerHTML = '';
+
+  const header = document.getElementById('resultsHeader');
+  header.classList.add('visible');
+  document.getElementById('resultsMeta').textContent = `${data.topics.length} topics · ${newsItems.length} sources`;
+
+  data.topics.forEach((topic, i) => {
+    const card = document.createElement('div');
+    card.className = 'topic-card' + (i === 0 ? ' open' : '');
+    card.innerHTML = `
+      <div class="topic-header" onclick="toggleCard(this)">
+        <span class="topic-rank">${i + 1}</span>
+        <span class="topic-title">${topic.title}</span>
+        <span class="topic-score ${scoreClass(topic.relevance_score)}">${topic.relevance_score}/10</span>
+        <span class="topic-chevron">&#9654;</span>
+      </div>
+      <div class="topic-body">
+        <p class="topic-summary">${topic.summary}</p>
+        <div class="strategy-box">
+          <div class="strategy-label">Strategic Recommendation</div>
+          ${topic.strategic_recommendation}
+        </div>
+        <div class="platform-grid">
+          <div class="platform-card">
+            <div class="platform-label">
+              <span class="platform-name">LinkedIn</span>
+              <button class="copy-btn" onclick="copyText(this.closest('.platform-card').querySelector('.platform-text').textContent, this)">Copy</button>
+            </div>
+            <div class="platform-text">${topic.platform_copy.linkedin}</div>
+          </div>
+          <div class="platform-card">
+            <div class="platform-label">
+              <span class="platform-name">X (Twitter)</span>
+              <button class="copy-btn" onclick="copyText(this.closest('.platform-card').querySelector('.platform-text').textContent, this)">Copy</button>
+            </div>
+            <div class="platform-text">${topic.platform_copy.twitter}</div>
+          </div>
+          <div class="platform-card">
+            <div class="platform-label">
+              <span class="platform-name">Instagram / TikTok</span>
+              <button class="copy-btn" onclick="copyText(this.closest('.platform-card').querySelector('.platform-text').textContent, this)">Copy</button>
+            </div>
+            <div class="platform-text">${topic.platform_copy.instagram_tiktok}</div>
+          </div>
+        </div>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+
+  const newsSection = document.getElementById('newsSection');
+  newsSection.classList.add('visible');
+  const newsList = document.getElementById('newsList');
+  newsList.innerHTML = newsItems.map(item =>
+    `<div class="news-item"><span class="news-kw">[${item.keyword}]</span> ${item.summary}</div>`
+  ).join('');
+}
+
+function runAnalysis() {
+  const brand = document.getElementById('brand').value.trim();
+  const keywords = parseKeywords();
+
+  if (keywords.length === 0) {
+    document.getElementById('keywords').focus();
+    return;
+  }
+
+  const btn = document.getElementById('analyzeBtn');
+  const status = document.getElementById('statusBar');
+  const statusText = document.getElementById('statusText');
+
+  btn.disabled = true;
+  status.classList.add('visible');
+  statusText.textContent = 'Fetching news summaries...';
+
+  setTimeout(() => {
+    const newsItems = fetchNews(keywords);
+    statusText.textContent = `Found ${newsItems.length} articles. Analyzing with Claude (simulated)...`;
+
+    setTimeout(() => {
+      const key = keywords.map(k => k.toLowerCase()).sort().join(',');
+      let result;
+      if (key === 'marketing,technology' || key === 'technology,marketing') {
+        result = MOCK_RESULTS['technology,marketing'];
+      } else {
+        result = getDefaultMockResult(keywords, brand);
+      }
+
+      status.classList.remove('visible');
+      btn.disabled = false;
+      renderResults(result, newsItems);
+    }, 1800);
+  }, 800);
+}
+
+// Pre-fill demo state
+document.getElementById('brand').value = 'We are a B2B SaaS company focused on AI-driven HR solutions for mid-market enterprises.';
+document.getElementById('keywords').value = 'technology, marketing';
+updateKeywordsBar();
+</script>
