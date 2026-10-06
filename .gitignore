@@ -1,0 +1,48 @@
+# Secrets & API keys — never commit these
+.env
+.env.*
+*.env
+.env.local
+.env.development
+.env.staging
+.env.production
+secrets.json
+secrets.yaml
+**/api_keys.*
+**/credentials.*
+*.key
+*.pem
+*.p12
+*.pfx
+service-account*.json
+google-services.json
+GoogleService-Info.plist
+
+# Dart/Flutter
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.iml
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backend
+backend/node_modules/
+backend/.env
+backend/*.log
+
+# Miscellaneous
+*.log
+*.tmp
+*.bak
